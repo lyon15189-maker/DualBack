@@ -12,10 +12,22 @@ import cuponesRoutes from "./routes/cupones.routes.js";
 import pagosRoutes from "./routes/pagos.routes.js";
 import carritoRoutes from "./routes/carrito.routes.js";
 
-
+const allowedOrigins = [
+  "http://localhost:3000",                  // Tu frontend local
+  "https://dualfront.vercel.app", // Tu frontend en producción (Vercel)
+];
 const app = express();
 app.use(cors({
-  origin: "http://localhost:3000", // frontend
+  origin: function (origin, callback) {
+    // Permitir peticiones sin origen (como Postman o el mismo servidor)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
