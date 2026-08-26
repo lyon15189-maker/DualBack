@@ -7,7 +7,7 @@ const pagoItemSchema = new mongoose.Schema(
     {
         tipo: {
             type: String,
-            enum: ["clase", "plan", "producto"],
+            enum: ["plan", "producto"],
             required: true
         },
 
@@ -19,7 +19,7 @@ const pagoItemSchema = new mongoose.Schema(
 
         tipoModelo: {
             type: String,
-            enum: ["Clase", "Plan", "Producto"],
+            enum: ["Plan", "Producto"],
             required: true
         },
 
@@ -44,6 +44,21 @@ const pagoItemSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 0
+        },
+
+        // ======================================
+        // DATOS EXTRA PARA PLANES
+        // (Se guardan para mantener el histórico
+        // aunque el plan cambie en el futuro)
+        // ======================================
+        clasesIncluidas: {
+            type: Number,
+            default: null
+        },
+
+        duracionDias: {
+            type: Number,
+            default: null
         },
 
         // ======================================
@@ -83,7 +98,12 @@ const pagoSchema = new mongoose.Schema(
             ref: "Usuario",
             required: true
         },
-
+        usuarioPlanes: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "UsuarioPlan"
+            }
+        ],
         // ======================================
         // ITEMS
         // ======================================
@@ -206,6 +226,8 @@ const pagoSchema = new mongoose.Schema(
             default: null
         },
 
+        
+
         // ======================================
         // CANCELACIÓN
         // ======================================
@@ -271,7 +293,6 @@ pagoSchema.pre("validate", function () {
 
     this.descuentoAplicado = descuento;
 
-    // nunca negativo
     this.total = Math.max(
         this.subtotal - descuento,
         0
@@ -292,18 +313,14 @@ pagoSchema.methods.aplicarCupon = async function (
     // ACTIVO
     // ======================================
     if (!cuponDoc.activo) {
-
         throw new Error("Cupón inactivo");
-
     }
 
     // ======================================
     // USOS
     // ======================================
     if (cuponDoc.usos <= 0) {
-
         throw new Error("Cupón agotado");
-
     }
 
     // ======================================
@@ -313,9 +330,7 @@ pagoSchema.methods.aplicarCupon = async function (
         ahora < cuponDoc.fechaInicio ||
         ahora > cuponDoc.fechaFin
     ) {
-
         throw new Error("Cupón expirado");
-
     }
 
     // ======================================
@@ -326,22 +341,17 @@ pagoSchema.methods.aplicarCupon = async function (
     );
 
     if (!aplica) {
-
         throw new Error(
             "El cupón no aplica para este pago"
         );
-
     }
 
     // ======================================
     // GUARDAR CUPÓN
     // ======================================
     this.cupon = cuponDoc._id;
-
     this.tipoDescuento = cuponDoc.descuento;
-
     this.valorDescuento = cuponDoc.cantidad;
-
 };
 
 export default mongoose.model(

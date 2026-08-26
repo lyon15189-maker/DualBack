@@ -5,6 +5,7 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  getAlumnoPlan,
   getDashboard
 } from "../controllers/usuarios.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -12,7 +13,7 @@ import { roleMiddleware } from "../middlewares/roles.middleware.js";
 import upload from "../middlewares/upload.js";
 
 const router = express.Router();
-
+router.get("/:id/plan",authMiddleware,getAlumnoPlan);
 router.get("/dashboard", authMiddleware, roleMiddleware("admin"), getDashboard);
 router.post("/", upload.single("avatar"), createUser);
 router.get("/", authMiddleware, getUsers);

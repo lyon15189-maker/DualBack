@@ -1,10 +1,17 @@
 import mongoose from 'mongoose';
 import bcrypt from "bcryptjs";
+
 const userSchema = new mongoose.Schema({
+
   avatar: {
     type: String,
     default: ""
   },
+  avatar_public_id: {
+    type: String,
+    default: ""
+  },
+
   nombre: { type: String, required: true },
   apellidos: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -36,15 +43,35 @@ const userSchema = new mongoose.Schema({
       message: "La fecha no puede ser futura"
     }
   },
-  // "1995-08-15"
 
-  activo: { type: Boolean, default: true }
+  activo: {
+    type: Boolean,
+    default: true
+  },
+
+  clasesTomadas: [
+    {
+      clase: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Clase"
+      },
+      fecha: Date,
+      hora: String,
+      reserva: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ReservaAsistencia"
+      },
+      fechaTomada: Date
+    }
+  ]
 
 }, { timestamps: true });
+
 // 🔥 middleware antes de guardar
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
   this.password = await bcrypt.hash(this.password, 10);
 });
+
 export default mongoose.model("Usuario", userSchema, "usuarios");

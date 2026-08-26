@@ -3,6 +3,7 @@ import cloudinary from "../config/cloudinary.js";
 import fs from "fs";
 import Clase from "../models/clases.model.js";
 import Pago from "../models/pagos.model.js";
+import UsuarioPlan from "../models/usuariosPlanes.model.js";
 
 // ======================================================
 // 🔥 DASHBOARD GENERAL
@@ -211,9 +212,65 @@ export const getUsers = async (req, res) => {
   }
 };
 
+export const getAlumnoPlan = async (req,res)=>{
+
+    try{
+
+        const usuarioPlan = await UsuarioPlan.findOne({
+            usuario:req.params.id,
+            activo:true
+        })
+        .populate("plan");
+
+
+        if(!usuarioPlan){
+            return res.status(404).json({
+                ok:false,
+                message:"El alumno no tiene plan activo"
+            });
+        }
+
+
+        const clasesRestantes =
+            usuarioPlan.clasesTotales -
+            usuarioPlan.clasesUsadas;
+
+
+        res.json({
+
+            ok:true,
+
+            data:{
+                plan:usuarioPlan.plan.nombre,
+                clasesTotales:
+                    usuarioPlan.clasesTotales,
+
+                clasesUsadas:
+                    usuarioPlan.clasesUsadas,
+
+                clasesRestantes,
+
+                fechaVencimiento:
+                    usuarioPlan.fechaVencimiento
+            }
+
+        });
+
+
+    }catch(error){
+
+        res.status(400).json({
+            ok:false,
+            message:error.message
+        });
+
+    }
+
+};
 // ✅ Obtener uno
 export const getUserById = async (req, res) => {
   try {
+
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -223,10 +280,30 @@ export const getUserById = async (req, res) => {
       });
     }
 
-    res.json({ ok: true, data: user });
+
+    const usuarioPlan = await UsuarioPlan.findOne({
+      usuario: user._id,
+      activo: true
+    })
+    .populate("plan");
+
+
+    res.json({ 
+      ok: true, 
+      data: {
+        ...user.toObject(),
+        planActivo: usuarioPlan || null
+      }
+    });
+
 
   } catch (error) {
-    res.status(400).json({ ok: false, message: error.message });
+
+    res.status(400).json({ 
+      ok: false, 
+      message: error.message 
+    });
+
   }
 };
 

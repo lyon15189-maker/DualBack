@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
     createReserva,
     getReservas,
@@ -9,44 +10,90 @@ import {
     marcarFalta,
     reactivarReserva,
     marcarAsistenciaMasiva,
-    deleteReserva
+    deleteReserva,
+    getDisponibilidadClases,
+    getReservasPorClaseFecha
 } from "../controllers/reservasAsistencia.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { roleMiddleware } from "../middlewares/roles.middleware.js";
 
 const router = Router();
+// ======================================================
+// RESERVAS POR CLASE Y FECHA
+// ======================================================
+router.get(
+    "/clase-fecha",
+    authMiddleware,
+    getReservasPorClaseFecha
+);
+// ======================================================
+// CREAR RESERVA
+// ======================================================
+router.post(
+    "/",
+    authMiddleware,
+    createReserva
+);
 
-/**
- * ✅ Crear reserva (alumnos)
- */
-router.post("/", authMiddleware, createReserva);
+// ======================================================
+// OBTENER RESERVAS
+// ======================================================
+router.get(
+    "/",
+    authMiddleware,
+    getReservas
+);
 
-/**
- * ✅ Obtener reservas (filtros opcionales)
- */
-router.get("/", authMiddleware, getReservas);
+// ======================================================
+// LISTA DE ASISTENCIA
+// ======================================================
+router.get(
+    "/asistencia",
+    authMiddleware,
+    getListaAsistencia
+);
 
-/**
- * ✅ Lista de asistencia (maestros/admin)
- */
-router.get("/asistencia", authMiddleware, getListaAsistencia);
+// ======================================================
+// DISPONIBILIDAD DE CLASES DEL USUARIO
+// IMPORTANTE: DEBE ESTAR ANTES DE /:id
+// ======================================================
+router.get(
+    "/disponibilidad",
+    authMiddleware,
+    getDisponibilidadClases
+);
 
-/**
- * ✅ Obtener reserva por ID
- */
-router.get("/:id", authMiddleware, getReservaById);
+// ======================================================
+// OBTENER RESERVA POR ID
+// ======================================================
+router.get(
+    "/:id",
+    authMiddleware,
+    getReservaById
+);
 
-/**
- * ✅ Cancelar reserva
- */
-router.put("/:id/cancelar", authMiddleware, cancelarReserva);
-router.put("/:id/reactivar", authMiddleware, reactivarReserva);
+// ======================================================
+// CANCELAR RESERVA
+// ======================================================
+router.put(
+    "/:id/cancelar",
+    authMiddleware,
+    cancelarReserva
+);
 
+// ======================================================
+// REACTIVAR RESERVA
+// ======================================================
+router.put(
+    "/:id/reactivar",
+    authMiddleware,
+    reactivarReserva
+);
 
-/**
- * ✅ Marcar asistencia (maestro)
- */
+// ======================================================
+// MARCAR ASISTENCIA
+// ======================================================
 router.put(
     "/:id/asistio",
     authMiddleware,
@@ -54,9 +101,9 @@ router.put(
     marcarAsistencia
 );
 
-/**
- * ✅ Marcar falta (maestro)
- */
+// ======================================================
+// MARCAR FALTA
+// ======================================================
 router.put(
     "/:id/falta",
     authMiddleware,
@@ -64,8 +111,9 @@ router.put(
     marcarFalta
 );
 
-
-
+// ======================================================
+// ASISTENCIA MASIVA
+// ======================================================
 router.put(
     "/asistencia/masiva",
     authMiddleware,
@@ -73,9 +121,9 @@ router.put(
     marcarAsistenciaMasiva
 );
 
-/**
- * ✅ Eliminar reserva (solo admin)
- */
+// ======================================================
+// ELIMINAR RESERVA
+// ======================================================
 router.delete(
     "/:id",
     authMiddleware,

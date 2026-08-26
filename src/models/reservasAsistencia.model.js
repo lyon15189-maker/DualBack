@@ -2,11 +2,21 @@ import mongoose from "mongoose";
 
 const reservaAsistenciaSchema = new mongoose.Schema(
   {
+
     alumno: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Usuario",
       required: true
     },
+
+
+    // 🔥 Plan que está utilizando el alumno
+    usuarioPlan: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UsuarioPlan",
+      default: null
+    },
+
 
     clase: {
       type: mongoose.Schema.Types.ObjectId,
@@ -14,28 +24,39 @@ const reservaAsistenciaSchema = new mongoose.Schema(
       required: true
     },
 
+
+    // El instructor viene desde la clase
     instructor: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Usuario",
-      required: true
+      ref: "Usuario"
     },
+
 
     fecha: {
       type: Date,
       required: true
     },
 
+
     hora: {
-      type: String, // formato HH:mm
+      type: String,
       required: true,
       match: /^([01]\d|2[0-3]):([0-5]\d)$/
     },
 
+
     estado: {
       type: String,
-      enum: ["reservado", "asistio", "no_asistio", "cancelado"],
+      enum: [
+        "reservado",
+        "asistio",
+        "no_asistio",
+        "cancelado",
+        "cancelado_minimo"
+      ],
       default: "reservado"
     },
+
 
     checkIn: {
       type: Date
@@ -47,81 +68,172 @@ const reservaAsistenciaSchema = new mongoose.Schema(
   }
 );
 
-/**
- * 🔒 Evita reservas duplicadas
- * Un alumno no puede reservar la misma clase en la misma fecha y hora
- */
+
+
+// ======================================================
+// Evitar reservas duplicadas
+// ======================================================
 reservaAsistenciaSchema.index(
-  { alumno: 1, clase: 1, fecha: 1, hora: 1 },
-  { unique: true }
+  {
+    alumno: 1,
+    clase: 1,
+    fecha: 1,
+    hora: 1
+  },
+  {
+    unique: true
+  }
 );
 
-/**
- * 🔥 Middleware para validar capacidad antes de guardar
- */
+
+
+// ======================================================
+// Validar capacidad
+// ======================================================
 reservaAsistenciaSchema.pre("save", async function () {
+
   if (!this.isNew) return;
 
-  const Reserva = mongoose.model("ReservaAsistencia");
-  const Clase = mongoose.model("Clase");
 
-  const clase = await Clase.findById(this.clase);
+  const Reserva =
+    mongoose.model("ReservaAsistencia");
+
+
+  const Clase =
+    mongoose.model("Clase");
+
+
+
+  const clase =
+    await Clase.findById(this.clase);
+
+
 
   if (!clase) {
-    throw new Error("Clase no encontrada");
+
+    throw new Error(
+      "Clase no encontrada"
+    );
+
   }
 
-  const totalReservas = await Reserva.countDocuments({
-    clase: this.clase,
-    fecha: this.fecha,
-    hora: this.hora,
-    estado: { $in: ["reservado", "asistio"] }
-  });
+
+
+  const totalReservas =
+    await Reserva.countDocuments({
+
+      clase: this.clase,
+
+      fecha: this.fecha,
+
+      hora: this.hora,
+
+      estado: {
+        $in: [
+          "reservado",
+          "asistio"
+        ]
+      }
+
+    });
+
+
 
   if (totalReservas >= clase.capacidad) {
-    throw new Error("La clase ya está llena");
+
+    throw new Error(
+      "La clase ya está llena"
+    );
+
   }
 
-  // asignar instructor
+
+
+  // asignar instructor automáticamente
   if (!this.instructor) {
-    this.instructor = clase.instructor;
+
+    this.instructor =
+      clase.instructor;
+
   }
+
+
 });
 
-/**
- * 🔥 Método estático para obtener lista de asistencia
- */
-reservaAsistenciaSchema.statics.obtenerLista = function ({
-  claseId,
-  fecha,
-  hora
-}) {
-  return this.find({
-    clase: claseId,
+
+
+
+// ======================================================
+// Obtener lista asistencia
+// ======================================================
+reservaAsistenciaSchema.statics.obtenerLista =
+  function ({
+    claseId,
     fecha,
     hora
-  })
-    .populate("alumno", "nombre apellidos email")
-    .populate("instructor", "nombre apellidos")
-    .sort({ createdAt: 1 });
-};
+  }) {
 
-/**
- * 🔥 Método para marcar asistencia
- */
-reservaAsistenciaSchema.methods.marcarAsistencia = function () {
-  this.estado = "asistio";
-  this.checkIn = new Date();
-  return this.save();
-};
+    return this.find({
 
-/**
- * 🔥 Método para marcar falta
- */
-reservaAsistenciaSchema.methods.marcarFalta = function () {
-  this.estado = "no_asistio";
-  return this.save();
-};
+      clase: claseId,
+      fecha,
+      hora
+
+    })
+
+      .populate(
+        "alumno",
+        "nombre apellidos email"
+      )
+
+      .populate(
+        "instructor",
+        "nombre apellidos"
+      )
+
+      .populate(
+        "usuarioPlan"
+      )
+
+      .sort({
+        createdAt: 1
+      });
+
+  };
+
+
+
+
+// ======================================================
+// Marcar asistencia
+// ======================================================
+reservaAsistenciaSchema.methods.marcarAsistencia =
+  function () {
+
+    this.estado = "asistio";
+
+    this.checkIn = new Date();
+
+    return this.save();
+
+  };
+
+
+
+
+// ======================================================
+// Marcar falta
+// ======================================================
+reservaAsistenciaSchema.methods.marcarFalta =
+  function () {
+
+    this.estado = "no_asistio";
+
+    return this.save();
+
+  };
+
+
 
 export default mongoose.model(
   "ReservaAsistencia",
