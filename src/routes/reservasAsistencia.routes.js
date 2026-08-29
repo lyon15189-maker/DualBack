@@ -12,7 +12,10 @@ import {
     marcarAsistenciaMasiva,
     deleteReserva,
     getDisponibilidadClases,
-    getReservasPorClaseFecha
+    getReservasPorClaseFecha,
+    cancelarClasePorMinimo,
+    cancelarClasePorMaestro,
+    cancelarClasePorAdmin,
 } from "../controllers/reservasAsistencia.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -89,6 +92,28 @@ router.put(
     "/:id/reactivar",
     authMiddleware,
     reactivarReserva
+);
+// ======================================================
+// CANCELAR CLASE POR MINIMO
+// ======================================================
+router.put(
+    "/cancelar-minimo",
+    authMiddleware,
+    roleMiddleware("admin"),
+    cancelarClasePorMinimo
+);
+router.put(
+    "/cancelar-maestro",
+    authMiddleware,
+    roleMiddleware("maestro", "admin"),
+    cancelarClasePorMaestro
+);
+
+router.put(
+    "/cancelar-admin",
+    authMiddleware,
+    roleMiddleware("admin"),
+    cancelarClasePorAdmin
 );
 
 // ======================================================

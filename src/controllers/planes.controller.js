@@ -94,7 +94,9 @@ export const updatePlan = async (req, res) => {
         const updated = await Plan.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true }
+            {
+returnDocument: "after"
+}
         );
 
         res.json({

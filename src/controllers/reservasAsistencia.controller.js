@@ -2,6 +2,73 @@ import ReservaAsistencia from "../models/reservasAsistencia.model.js";
 import UsuarioPlan from "../models/usuariosPlanes.model.js";
 import Clase from "../models/clases.model.js";
 import Usuario from "../models/usuarios.model.js";
+// ==========================================
+// EXTENDER VIGENCIA DEL PLAN 30 DÍAS
+// ==========================================
+const extenderVigenciaPlan = async (usuarioPlanId) => {
+
+    // console.log("PLAN:", usuarioPlanId);
+
+    const usuarioPlan =
+        await UsuarioPlan.findById(usuarioPlanId);
+
+    if (!usuarioPlan) {
+        console.log("NO SE ENCONTRO PLAN");
+        return;
+    }
+
+    // console.log(
+    //     "FECHA ANTES:",
+    //     usuarioPlan.fechaVencimiento
+    // );
+
+    const nuevaFecha =
+        new Date(usuarioPlan.fechaVencimiento);
+
+    nuevaFecha.setDate(
+        nuevaFecha.getDate() + 30
+    );
+
+    usuarioPlan.fechaVencimiento =
+        nuevaFecha;
+
+    await usuarioPlan.save();
+
+    console.log(
+        "FECHA DESPUES:",
+        usuarioPlan.fechaVencimiento
+    );
+};
+const cancelarReservasYExtenderPlan = async (
+    reservas,
+    nuevoEstado
+) => {
+
+    const planesProcesados = new Set();
+
+    for (const reserva of reservas) {
+
+        reserva.estado = nuevoEstado;
+
+        await reserva.save();
+
+        if (
+            reserva.usuarioPlan &&
+            !planesProcesados.has(
+                reserva.usuarioPlan.toString()
+            )
+        ) {
+
+            await extenderVigenciaPlan(
+                reserva.usuarioPlan
+            );
+
+            planesProcesados.add(
+                reserva.usuarioPlan.toString()
+            );
+        }
+    }
+};
 // ======================================================
 // Cancelar por minimo
 // ======================================================
@@ -34,7 +101,30 @@ export const cancelarClasePorMinimo = async (req, res) => {
                     "alumno",
                     "nombre email"
                 );
+        // ==========================================
+        // EXTENDER VIGENCIA DE LOS PLANES
+        // ==========================================
 
+        const planesProcesados = new Set();
+
+        for (const reserva of reservasActivas) {
+
+            if (
+                reserva.usuarioPlan &&
+                !planesProcesados.has(
+                    reserva.usuarioPlan.toString()
+                )
+            ) {
+                // console.log("88 extender");
+                await extenderVigenciaPlan(
+                    reserva.usuarioPlan
+                );
+
+                planesProcesados.add(
+                    reserva.usuarioPlan.toString()
+                );
+            }
+        }
         if (
             reservasActivas.length >=
             claseInfo.capacidadMin
@@ -46,16 +136,9 @@ export const cancelarClasePorMinimo = async (req, res) => {
             });
         }
 
-        await ReservaAsistencia.updateMany(
-            {
-                clase,
-                fecha,
-                hora,
-                estado: "reservado"
-            },
-            {
-                estado: "cancelado_minimo"
-            }
+        await cancelarReservasYExtenderPlan(
+            reservasActivas,
+            "cancelado_minimo"
         );
 
         return res.json({
@@ -69,6 +152,166 @@ export const cancelarClasePorMinimo = async (req, res) => {
     } catch (error) {
 
         res.status(500).json({
+            ok: false,
+            message: error.message
+        });
+
+    }
+};
+export const cancelarClasePorMaestro = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const {
+            clase,
+            fecha,
+            hora
+        } = req.body;
+
+        const reservas =
+            await ReservaAsistencia.find({
+                clase,
+                fecha,
+                hora,
+                estado: "reservado"
+            });
+
+        await cancelarReservasYExtenderPlan(
+            reservas,
+            "cancelado_maestro"
+        );
+
+        return res.json({
+            ok: true,
+            message:
+                "Clase cancelada por maestro",
+            totalAfectados:
+                reservas.length
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            ok: false,
+            message: error.message
+        });
+
+    }
+};
+export const cancelarClasePorAdmin = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const {
+            clase,
+            fecha,
+            hora
+        } = req.body;
+
+        const reservas =
+            await ReservaAsistencia.find({
+                clase,
+                fecha,
+                hora,
+                estado: "reservado"
+            });
+
+        await cancelarReservasYExtenderPlan(
+            reservas,
+            "cancelado_admin"
+        );
+
+        return res.json({
+            ok: true,
+            message:
+                "Clase cancelada por administrador",
+            totalAfectados:
+                reservas.length
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            ok: false,
+            message: error.message
+        });
+
+    }
+};
+// ======================================================
+// CANCELAR RESERVA
+// ======================================================
+export const cancelarReserva = async (req, res) => {
+    try {
+
+        const reserva =
+            await ReservaAsistencia.findById(
+                req.params.id
+            );
+
+        if (!reserva) {
+            return res.status(404).json({
+                ok: false,
+                message: "Reserva no encontrada"
+            });
+        }
+
+        if (reserva.estado !== "reservado") {
+            return res.status(400).json({
+                ok: false,
+                message: "La reserva ya fue procesada"
+            });
+        }
+
+        const fechaSolo =
+            reserva.fecha.toISOString().split("T")[0];
+
+        const fechaClase = new Date(
+            `${fechaSolo}T${reserva.hora}:00`
+        );
+
+        const ahora = new Date();
+
+        const diferenciaMinutos =
+            (fechaClase.getTime() - ahora.getTime()) /
+            (1000 * 60);
+
+        // console.log("176", {
+        //     reserva: reserva._id,
+        //     fechaBD: reserva.fecha,
+        //     horaBD: reserva.hora,
+        //     fechaClase,
+        //     ahora,
+        //     vencida: fechaClase < ahora
+        // });
+
+
+        if (diferenciaMinutos < 60) {
+            return res.status(400).json({
+                ok: false,
+                message:
+                    "Solo puedes cancelar con al menos 1 hora de anticipación"
+            });
+        }
+
+        reserva.estado = "cancelado";
+
+        await reserva.save();
+
+        res.json({
+            ok: true,
+            message: "Reserva cancelada"
+        });
+
+    } catch (error) {
+
+        res.status(400).json({
             ok: false,
             message: error.message
         });
@@ -182,10 +425,11 @@ export const getDisponibilidadClases = async (req, res) => {
     try {
         const usuarioId = req.user.id;
         const hoy = new Date();
-
+        
         // ==========================================
         // BUSCAR PLANES ACTIVOS Y VIGENTES
         // ==========================================
+        // console.log("Buscando planes para usuario:", usuarioId);
         const planes = await UsuarioPlan.find({
             usuario: usuarioId,
             activo: true,
@@ -193,6 +437,7 @@ export const getDisponibilidadClases = async (req, res) => {
                 $gte: hoy
             }
         }).populate("plan", "nombre duracion clases");
+        // console.log("planes encontrados:", planes.length);
 
         // ==========================================
         // SI NO TIENE PLANES
@@ -280,6 +525,13 @@ export const getDisponibilidadClases = async (req, res) => {
             ilimitadas ||
             clasesDisponibles > 0;
 
+        // console.log("461", {
+        //     usuarioId,
+        //     clasesTotales,
+        //     clasesUsadas,
+        //     clasesReservadas,
+        //     clasesDisponibles
+        // });
         // ==========================================
         // RESPUESTA
         // ==========================================
@@ -423,7 +675,14 @@ export const createReserva = async (req, res, next) => {
         if (reservaExistente) {
 
             if (
-                reservaExistente.estado === "cancelado"
+                [
+                    "cancelado",
+                    "cancelado_minimo",
+                    "cancelado_maestro",
+                    "cancelado_admin"
+                ].includes(
+                    reservaExistente.estado
+                )
             ) {
 
                 reservaExistente.estado =
@@ -517,6 +776,7 @@ export const createReserva = async (req, res, next) => {
 
             });
 
+        // console.log("705 RESERVA CREADA", reserva);
         res.status(201).json({
 
             ok: true,
@@ -653,77 +913,7 @@ export const getReservaById = async (req, res) => {
     }
 
 };
-// ======================================================
-// CANCELAR RESERVA
-// ======================================================
-export const cancelarReserva = async (req, res) => {
-    try {
 
-        const reserva =
-            await ReservaAsistencia.findById(
-                req.params.id
-            );
-
-        if (!reserva) {
-            return res.status(404).json({
-                ok: false,
-                message: "Reserva no encontrada"
-            });
-        }
-
-        if (reserva.estado !== "reservado") {
-            return res.status(400).json({
-                ok: false,
-                message: "La reserva ya fue procesada"
-            });
-        }
-
-        const fechaSolo =
-            reserva.fecha.toISOString().split("T")[0];
-
-        const fechaClase = new Date(
-            `${fechaSolo}T${reserva.hora}:00`
-        );
-
-        const ahora = new Date();
-
-        const diferenciaMinutos =
-            (fechaClase.getTime() - ahora.getTime()) /
-            (1000 * 60);
-
-        // console.log("fecha BD:", reserva.fecha);
-        // console.log("hora BD:", reserva.hora);
-        // console.log("fechaClase:", fechaClase);
-        // console.log("ahora:", ahora);
-        // console.log("diferenciaMinutos:", diferenciaMinutos);
-
-
-        if (diferenciaMinutos < 60) {
-            return res.status(400).json({
-                ok: false,
-                message:
-                    "Solo puedes cancelar con al menos 1 hora de anticipación"
-            });
-        }
-
-        reserva.estado = "cancelado";
-
-        await reserva.save();
-
-        res.json({
-            ok: true,
-            message: "Reserva cancelada"
-        });
-
-    } catch (error) {
-
-        res.status(400).json({
-            ok: false,
-            message: error.message
-        });
-
-    }
-};
 // ======================================================
 // REACTIVAR RESERVA
 // ======================================================

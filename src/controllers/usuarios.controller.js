@@ -6,6 +6,40 @@ import Pago from "../models/pagos.model.js";
 import UsuarioPlan from "../models/usuariosPlanes.model.js";
 
 // ======================================================
+// 🔥 Restablecer contraseña a 1234
+// ======================================================
+export const resetPassword = async (req, res) => {
+  try {
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        message: "Usuario no encontrado"
+      });
+    }
+
+    user.password = "1234";
+
+    await user.save();
+
+    res.json({
+      ok: true,
+      message: "Contraseña restablecida correctamente",
+      passwordTemporal: "1234"
+    });
+
+  } catch (error) {
+
+    res.status(400).json({
+      ok: false,
+      message: error.message
+    });
+
+  }
+};
+// ======================================================
 // 🔥 DASHBOARD GENERAL
 // ======================================================
 export const getDashboard = async (req, res) => {

@@ -52,7 +52,9 @@ const reservaAsistenciaSchema = new mongoose.Schema(
         "asistio",
         "no_asistio",
         "cancelado",
-        "cancelado_minimo"
+        "cancelado_minimo",
+        "cancelado_maestro",
+        "cancelado_admin"
       ],
       default: "reservado"
     },

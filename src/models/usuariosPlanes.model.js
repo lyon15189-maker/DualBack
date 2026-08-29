@@ -50,7 +50,10 @@ const usuariosPlanesSchema = new mongoose.Schema(
             required: true
         },
 
-
+        ultimaExtensionPorCancelacion: {
+            type: Date,
+            default: null
+        },
         // Permite saber si el plan sigue vigente
         activo: {
             type: Boolean,

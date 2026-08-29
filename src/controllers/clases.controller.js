@@ -212,7 +212,9 @@ export const updateClass = async (req, res) => {
     const updated = await Clase.findByIdAndUpdate(
       req.params.id,
       newData,
-      { new: true }
+      {
+        returnDocument: "after"
+      }
     );
 
     res.json({

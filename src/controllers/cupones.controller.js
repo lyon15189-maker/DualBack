@@ -160,7 +160,9 @@ export const updateCupon = async (req, res) => {
         const updated = await Cupon.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true }
+            {
+returnDocument: "after"
+}
         );
 
         res.json({
